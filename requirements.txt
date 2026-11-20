@@ -1,0 +1,6 @@
+numpy>=1.24
+opencv-python-headless>=4.8
+pyyaml>=6.0
+# Masking backend (BiRefNet via rembg). Use rembg[gpu] if you have CUDA.
+rembg[cpu]>=2.0.57
+pillow>=10.0

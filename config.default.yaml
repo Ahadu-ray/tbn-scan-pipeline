@@ -1,0 +1,64 @@
+# Default pipeline settings. Override per restaurant in <Restaurant>/restaurant.yaml
+# and per dish in <Restaurant>/Dishes/<dish>/dish.yaml (same keys, deep-merged).
+
+tools:
+  ffmpeg: ffmpeg
+  blender: blender                 # e.g. "C:/Program Files/Blender Foundation/Blender 4.2/blender.exe"
+  realityscan: RealityScan.exe     # e.g. "C:/Program Files/Epic Games/RealityScan_2.0/RealityScan.exe"
+  meshroom: meshroom_batch
+  gltf_transform: npx --yes @gltf-transform/cli   # needs KTX-Software ("ktx"/"toktx") on PATH for KTX2
+
+capture:
+  rings: [low, mid, top]           # expected video names in Photos/video/<ring>.mp4 (any common ext)
+  video_exts: [.mp4, .mov, .MP4, .MOV]
+
+extract:
+  fps: 3                           # frames pulled per second of video
+  trim_start_s: 1.0                # skip operator hand / settle time
+  trim_end_s: 0.5
+  jpeg_quality: 2                  # ffmpeg -q:v (2 = high)
+
+select:
+  per_ring:                        # target frames kept per ring, by profile
+    standard: 50
+    detailed: 70
+  center_crop: 0.6                 # measure sharpness on the central part of the frame (the dish)
+  analysis_width: 960              # downscale before measuring (speed)
+  min_rel_sharpness: 0.45          # drop a frame if sharper than < this x the ring median
+
+mask:
+  backend: rembg
+  model: birefnet-general          # rembg model; "birefnet-general-lite" is faster, "isnet-general-use" also works
+  threshold: 128                   # binarise the soft matte
+  dilate_px: 6                     # grow mask slightly so plate rims are not clipped
+  # RealityScan picks up a mask layer named <image name incl. extension>.mask.png placed
+  # next to the image, e.g. low_0001.jpg -> low_0001.jpg.mask.png. {stem}=low_0001, {name}=low_0001.jpg
+  mask_name: "{name}.mask.png"
+  write_cutouts: false             # also write RGBA cutouts (useful for Meshroom / review)
+
+reconstruct:
+  engine: realityscan              # realityscan | meshroom
+  quality: normal                  # normal | high  (high = -calculateHighModel)
+  export_format: obj               # RealityScan exportModel format (obj keeps textures simple)
+  extra_args: []                   # appended to the RealityScan command line
+
+blender:
+  plate_diameter_cm: 28            # real outer diameter of the plate/serving piece (override per dish!)
+  auto_orient: true                # PCA plane fit so the plate lies flat on Z=0, food up
+  highpoly_max_faces: 1000000      # cap for the saved high-poly reference
+  proxy_faces: 60000               # decimated proxy, starting point for retopo
+  merge_by_distance_mm: 0.05
+
+export:
+  compress: meshopt                # meshopt | draco | none
+  texture_compress: ktx2           # ktx2 | webp | none
+  texture_size: 2048               # max texture resolution in the final GLB
+  simplify: false                  # gltf-transform simplify (usually off: you retopo by hand)
+
+profile: standard                  # standard | detailed (detailed = extra pass / more frames)
+
+# Optional shell commands run after a stage. Placeholders: {dish_dir} {dish} {restaurant_dir}
+hooks:
+  after_reconstruct: null
+  after_blender: null
+  after_export: null
